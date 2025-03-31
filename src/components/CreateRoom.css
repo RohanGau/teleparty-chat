@@ -1,0 +1,32 @@
+.create-room {
+    padding: 20px;
+  }
+  
+  .create-room h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  .create-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .create-button:hover:not(:disabled) {
+    background-color: #2980b9;
+  }
+  
+  .create-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  

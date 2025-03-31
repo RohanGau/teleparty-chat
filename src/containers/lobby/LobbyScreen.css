@@ -1,0 +1,46 @@
+.lobby-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 20px;
+  }
+  
+  .connection-status {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+  }
+  
+  .tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  
+  .tab:hover {
+    background-color: #f5f5f5;
+  }
+  
+  .tab.active {
+    border-bottom: 3px solid #3498db;
+    color: #3498db;
+  }
+  
+  .tab-content {
+    flex: 1;
+  }
+  
