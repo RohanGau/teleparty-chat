@@ -8,7 +8,7 @@ interface MessageInputProps {
 
 const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onSetTyping }) => {
   const [message, setMessage] = useState('');
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
