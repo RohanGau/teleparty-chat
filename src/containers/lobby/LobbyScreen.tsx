@@ -4,41 +4,49 @@ import CreateRoom from '../../components/CreateRoom';
 import JoinRoom from '../../components/JoinRoom';
 import socketService from '../../services/SocketService';
 import './LobbyScreen.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectIsConnected } from '../../store/appSlice/appSelectors';
+import { setConnectionStatus, setNickname, setRoomId, setUserIcon, setUserId } from '../../store/appSlice/appSlice';
+import Status from '../../components/Status';
 
 const LobbyScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
+  const isConnected = useSelector(selectIsConnected);
 
   useEffect(() => {
     // Subscribe to connection status
     const connectionUnsubscribe = socketService.onConnection(() => {
-      setIsConnected(true);
+      dispatch(setConnectionStatus(true));
+    });
+
+    const userIdUnsubscribe = socketService.onUserId((userId) => {
+      dispatch(setUserId(userId));
     });
 
     const disconnectionUnsubscribe = socketService.onDisconnection(() => {
-      setIsConnected(false);
+      dispatch(setConnectionStatus(false));
       alert("Connection closed. Please reload the app.");
     });
 
     // Set initial connection status
-    setIsConnected(socketService.getConnectionStatus());
+    dispatch(setConnectionStatus(socketService.getConnectionStatus()));
 
     return () => {
       connectionUnsubscribe();
       disconnectionUnsubscribe();
+      userIdUnsubscribe();
     };
   }, []);
 
   const handleCreateRoom = async (nickname: string, userIcon?: string) => {
     try {
       const newRoomId = await socketService.createChatRoom(nickname, userIcon);
-      // Store user info in localStorage for persistence
-      localStorage.setItem('teleparty_nickname', nickname);
-      if (userIcon) {
-        localStorage.setItem('teleparty_userIcon', userIcon);
-      }
       // Navigate to the room
+      dispatch(setNickname(nickname));
+      dispatch(setUserIcon(userIcon || ''));
+      dispatch(setRoomId(newRoomId));
       navigate(`/room/${newRoomId}`);
     } catch (error) {
       console.error("Error creating room:", error);
@@ -49,11 +57,9 @@ const LobbyScreen: React.FC = () => {
   const handleJoinRoom = async (roomIdToJoin: string, nickname: string, userIcon?: string) => {
     try {
       await socketService.joinChatRoom(nickname, roomIdToJoin, userIcon);
-      // Store user info in localStorage for persistence
-      localStorage.setItem('teleparty_nickname', nickname);
-      if (userIcon) {
-        localStorage.setItem('teleparty_userIcon', userIcon);
-      }
+      dispatch(setNickname(nickname));
+      dispatch(setUserIcon(userIcon || ''));
+      dispatch(setRoomId(roomIdToJoin));
       // Navigate to the room
       navigate(`/room/${roomIdToJoin}`);
     } catch (error) {
@@ -64,12 +70,7 @@ const LobbyScreen: React.FC = () => {
 
   return (
     <div className="lobby-container">
-      {!isConnected && (
-        <div className="connection-status">
-          Connecting to server... Please wait.
-        </div>
-      )}
-      
+      <Status />
       <div className="tabs">
         <button 
           className={`tab ${activeTab === 'create' ? 'active' : ''}`}

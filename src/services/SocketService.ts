@@ -4,6 +4,7 @@ import { TelepartyClient, SocketEventHandler, SocketMessageTypes, SessionChatMes
 export type MessageCallback = (message: SessionChatMessage) => void;
 export type TypingCallback = (usersTyping: string[]) => void;
 export type ConnectionCallback = () => void;
+export type UserIdCallback = (userId: string) => void;
 
 export class SocketService {
   private client: TelepartyClient | null = null;
@@ -11,6 +12,7 @@ export class SocketService {
   private typingCallbacks: TypingCallback[] = [];
   private connectionCallbacks: ConnectionCallback[] = [];
   private disconnectionCallbacks: (() => void)[] = [];
+  private userIdCallbacks: UserIdCallback[] = [];
   private isConnected: boolean = false;
 
   constructor() {
@@ -38,6 +40,9 @@ export class SocketService {
         } else if (message.type === SocketMessageTypes.SET_TYPING_PRESENCE) {
           const typingData = message.data as { anyoneTyping: boolean; usersTyping: string[] };
           this.notifyTypingCallbacks(typingData.usersTyping);
+        } else if(message.type === "userId") {
+          const userId = message.data.userId;
+          this.notifyUserIdCallbacks(userId);
         }
       }
     };
@@ -103,6 +108,13 @@ export class SocketService {
     };
   }
 
+  public onUserId(callback: UserIdCallback): () => void {
+    this.userIdCallbacks.push(callback);
+    return () => {
+      this.userIdCallbacks = this.userIdCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
   public onTypingUpdate(callback: TypingCallback): () => void {
     this.typingCallbacks.push(callback);
     
@@ -150,6 +162,10 @@ export class SocketService {
 
   private notifyDisconnectionCallbacks(): void {
     this.disconnectionCallbacks.forEach(callback => callback());
+  }
+
+  private notifyUserIdCallbacks(userId: string): void {
+    this.userIdCallbacks.forEach(callback => callback(userId));
   }
 }
 

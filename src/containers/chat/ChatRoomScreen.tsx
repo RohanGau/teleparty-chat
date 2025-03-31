@@ -1,86 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { SessionChatMessage } from 'teleparty-websocket-lib';
+import React, { useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import socketService from '../../services/SocketService';
 import ChatRoom from './ChatRoom';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectCurrentSessionId, selectHasJoined, selectIsConnected, selectMessages, selectNickname, selectUserIcon, selectUsersTyping } from '../../store/appSlice/appSelectors';
+import { addMessage, resetChatState, setConnectionStatus, setCurrentSession, setHasJoined, setUserId, setUsersTyping } from '../../store/appSlice/appSlice';
+import Status from '../../components/Status';
 
 const ChatRoomScreen: React.FC = () => {
-  const { roomId } = useParams<{ roomId: string }>();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<SessionChatMessage[]>([]);
-  const [usersTyping, setUsersTyping] = useState<string[]>([]);
-  const [nickname, setNickname] = useState<string>('');
-  const [userIcon, setUserIcon] = useState<string | undefined>(undefined);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [hasJoined, setHasJoined] = useState<boolean>(false);
+  const { roomId } = useParams<{ roomId: string }>();
+  const messages = useSelector(selectMessages);
+  const usersTyping = useSelector(selectUsersTyping);
+  const nickname = useSelector(selectNickname);
+  const userIcon = useSelector(selectUserIcon);
+  const hasJoined = useSelector(selectHasJoined);
+  const isConnected = useSelector(selectIsConnected);
+  const currentSessionId = useSelector(selectCurrentSessionId);
 
   useEffect(() => {
-    // Load user info from localStorage
-    const savedNickname = localStorage.getItem('teleparty_nickname');
-    const savedUserIcon = localStorage.getItem('teleparty_userIcon');
     
-    if (savedNickname) {
-      setNickname(savedNickname);
-    }
+    const initSocket = () => {
+        const connectionUnsubscribe = socketService.onConnection(() => {
+            dispatch(setConnectionStatus(true));
+        });
     
-    if (savedUserIcon) {
-      setUserIcon(savedUserIcon);
+        const disconnectionUnsubscribe = socketService.onDisconnection(() => {
+            dispatch(setConnectionStatus(false));
+            alert("Connection closed. Please reload the app.");
+        });
+
+        const userIdUnsubscribe = socketService.onUserId((userId) => {
+            dispatch(setUserId(userId));
+        });
+    
+        const messageUnsubscribe = socketService.onMessage((message) => {
+            dispatch(addMessage(message))
+        });
+    
+        const typingUnsubscribe = socketService.onTypingUpdate((users) => {
+            dispatch(setUsersTyping(users)); 
+        });
+    
+        return () => {
+            connectionUnsubscribe();
+            disconnectionUnsubscribe();
+            messageUnsubscribe();
+            userIdUnsubscribe();
+            typingUnsubscribe();
+        };
     }
 
-    // Subscribe to connection status
-    const connectionUnsubscribe = socketService.onConnection(() => {
-      setIsConnected(true);
-    });
-
-    const disconnectionUnsubscribe = socketService.onDisconnection(() => {
-      setIsConnected(false);
-      alert("Connection closed. Please reload the app.");
-    });
-
-    // Subscribe to messages
-    const messageUnsubscribe = socketService.onMessage((message) => {
-      setMessages(prevMessages => [...prevMessages, message]);
-    });
-
-    // Subscribe to typing updates
-    const typingUnsubscribe = socketService.onTypingUpdate((typingUsers) => {
-      setUsersTyping(typingUsers);
-    });
-
-    // Set initial connection status
-    setIsConnected(socketService.getConnectionStatus());
-
+    const cleanup = initSocket();
+    dispatch(setConnectionStatus(socketService.getConnectionStatus()));
+    
     return () => {
-      connectionUnsubscribe();
-      disconnectionUnsubscribe();
-      messageUnsubscribe();
-      typingUnsubscribe();
-    };
-  }, []);
+        cleanup?.();
+        dispatch(resetChatState());
+    }
+  }, [dispatch, roomId]);
 
-  // Effect to automatically join the room when connection is ready
+
   useEffect(() => {
     const joinRoom = async () => {
-      if (isConnected && roomId && nickname && !hasJoined) {
+      // Only join if we're not already in this session
+      if (isConnected && roomId && nickname && !hasJoined && currentSessionId !== roomId) {
         try {
           await socketService.joinChatRoom(nickname, roomId, userIcon);
-          setHasJoined(true);
+          dispatch(setHasJoined(true));
+          dispatch(setCurrentSession(roomId));
         } catch (error) {
           console.error("Error joining room:", error);
-          alert("Failed to join room. Returning to lobby.");
-          navigate('/');
+          if (error.message.includes("already in a session")) {
+            dispatch(setHasJoined(true));
+            dispatch(setCurrentSession(roomId));
+          } else {
+            navigate('/');
+          }
         }
       }
     };
-
     joinRoom();
-  }, [isConnected, roomId, nickname, userIcon, hasJoined, navigate]);
+  }, [isConnected, roomId, nickname, userIcon, hasJoined, currentSessionId]);
 
-  // If we don't have a nickname yet but we're on the chat screen,
-  // we should redirect to the lobby
+  useEffect(() => {
+    return () => {
+      // Only reset if we're leaving this specific room
+      if (currentSessionId === roomId) {
+        dispatch(resetChatState());
+        dispatch(setCurrentSession(null));
+      }
+    };
+  }, [currentSessionId, roomId]);
+
   useEffect(() => {
     if (isConnected && !nickname) {
-      navigate('/');
+        navigate('/');
     }
   }, [isConnected, nickname, navigate]);
 
@@ -92,7 +108,7 @@ const ChatRoomScreen: React.FC = () => {
       alert("Failed to send message. Please check your connection.");
     }
   };
-
+  
   const handleSetTyping = (isTyping: boolean) => {
     try {
       socketService.setTypingStatus(isTyping);
@@ -106,31 +122,18 @@ const ChatRoomScreen: React.FC = () => {
   }
 
   return (
-    <div>
-      {!isConnected && (
-        <div className="connection-status">
-          Connecting to server... Please wait.
-        </div>
-      )}
-      
-      {isConnected && !hasJoined && nickname && (
-        <div className="joining-status">
-          Joining room {roomId}... Please wait.
-        </div>
-      )}
-      
-      {isConnected && hasJoined && (
-        <ChatRoom 
-          messages={messages} 
-          nickname={nickname}
-          userIcon={userIcon}
-          onSendMessage={handleSendMessage}
-          onSetTyping={handleSetTyping}
-          usersTyping={usersTyping}
-          roomId={roomId}
+    <>
+        <Status isJoining={true} />
+        <ChatRoom
+            messages={messages}
+            nickname={nickname}
+            userIcon={userIcon}
+            onSendMessage={handleSendMessage}
+            onSetTyping={handleSetTyping}
+            usersTyping={usersTyping}
+            roomId={roomId}
         />
-      )}
-    </div>
+    </>
   );
 };
 

@@ -20,3 +20,15 @@ export interface SocketConnectionState {
   hasError: boolean;
   errorMessage?: string;
 }
+
+export interface AppState {
+  roomId: string | null,
+  nickname: string,
+  userId: null | string,
+  hasJoined: boolean;
+  userIcon?: string,
+  isConnected: boolean;
+  messages: SessionChatMessage[];
+  usersTyping: string[];
+  currentSessionId: string | null;
+}
