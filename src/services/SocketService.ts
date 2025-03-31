@@ -75,7 +75,8 @@ export class SocketService {
       throw new Error("Not connected to the server");
     }
     
-    return await this.client.joinChatRoom(nickname, roomId, userIcon);
+    await this.client.joinChatRoom(nickname, roomId, userIcon);
+    return;
   }
 
   public sendMessage(message: string): void {

@@ -72,7 +72,7 @@ const ChatRoomScreen: React.FC = () => {
           dispatch(setCurrentSession(roomId));
         } catch (error) {
           console.error("Error joining room:", error);
-          if (error.message.includes("already in a session")) {
+          if (error instanceof Error && error.message.includes("already in a session")) {
             dispatch(setHasJoined(true));
             dispatch(setCurrentSession(roomId));
           } else {
