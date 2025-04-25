@@ -1,13 +1,13 @@
 {
-  "name": "teleparty-chat",
-  "homepage": "https://RohanGau.github.io/chat-app",
+  "name": "aspire",
+  "homepage": "https://RohanGau.github.io/aspire",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "build": "tsc -b && vite build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.6.1",
